@@ -1,5 +1,38 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+class TextNode:
+    def __init__(self,text,box):
+        self.text = text
+        self.box = box
+class VLine:
+    def __init__(self,box):
+        self.box = box
+        pass
+class HLine:
+    def __init__(self,box):
+        self.box = box
+        pass
+class Layout:
+    ROW = 1
+    COLUMN = 2
+    def __init__(self,box,type):
+        self.box = box
+        self.items = [[]]
+        self.line_count = 0
+        self.type = type
+    def addText(self,textnode):
+        if isinstance(textnode,TextNode):
+            pass
+        else:
+            raise Exception("TypeError in addText")
+    def addLine(self,line):
+        if self.type == self.ROW and isinstance(line,HLine):
+            pass
+        elif self.type == self.COLUMN and isinstance(line,VLine):
+            pass
+        else:
+            raise Exception("TypeError in addLine")
+
 class CompanyInfo:
     def __init__(self):
         # 公司名称
