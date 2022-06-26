@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 class TextNode:
     def __init__(self,text,box):
         self.text = text
