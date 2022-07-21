@@ -51,11 +51,12 @@ def pure(text):
     return text
 
 def draw_box(ax,b,arg):
-    ax.plot(b[[0,0,2,2,0]],b[[1,3,3,1,1]],arg)
+    ax.plot(b[[0,0,2,2,0]],b[[1,3,3,1,1]],arg,linewidth=3.0)
+
 if __name__ == "__main__":
     count = 1
-    # start = np.random.randint(0,10,1)
-    start = 0
+    start = np.random.randint(0,10,1)
+    # start = 0
     end = start + count
     if len(sys.argv) != 2:
         "script.py [dirname[default=invoice]]"
@@ -70,13 +71,13 @@ if __name__ == "__main__":
             continue
         if _count >= end:
             break
-        fig, axs = plt.subplots(2,2,figsize=(20,12))
+        fig, axs = plt.subplots(1,1,figsize=(20,12))
         plt.setp(axs, xlim=(0,1), ylim=(0,1))
         plt.tight_layout()
-        ax = axs[0,0]
-        bx = axs[1,1]
-        cx = axs[0,1]
-        dx = axs[1,0]
+        ax = axs
+        bx = ax#axs[0,0]
+        cx = ax#axs[0,0]
+        dx = ax#axs[0,0]
         print(_count,filename)
         fp = open(os.path.join(directory,filename), 'rb')
         rsrcmgr = PDFResourceManager()
@@ -89,14 +90,13 @@ if __name__ == "__main__":
             page_box = page.mediabox
             w = page_box[2]
             h = page_box[3]
-            print(page_box)
+            # print(page_box)
             interpreter.process_page(page)
             layout = device.get_result()
             for o in layout:
                 if isinstance(o, LTTextBox):
                     b = np.array(o.bbox)/[w,h,w,h]
                     x, y, text = o.bbox[0], o.bbox[1], o.get_text()
-                    # print(o.bbox,text)
                     text = pure(text)
                     color = "g"
                     if key in text:
@@ -104,32 +104,10 @@ if __name__ == "__main__":
                         color = "r"
                     ax.text(b[0],b[3],text,horizontalalignment='left',verticalalignment='top')
                     ax.plot(b[0],b[3],color+".")
-                    draw_box(ax,b,color)
-                if isinstance(o, LTLine):
                     b = np.array(o.bbox)/[w,h,w,h]
-                    draw_box(ax,b,'y')
-                    if b[0] != b[2] and b[1] != b[3]:
-                        print(b)
-                    elif b[0] == b[2]:
-                        vlines.append(b)
-                        vlines_layout.add(b[0])
-                    elif b[1] == b[3]:
-                        hlines.append(b)
-                        hlines_layout.add(b[1])
-                    else:
-                        raise Exception("got point in LTLine")
-                    pass
-                if isinstance(o, LTRect):
-                    b = np.array(o.bbox)/[w,h,w,h]
-                    draw_box(ax,b,'b')
-                    # [b[0],b[0],b[2],b[2],b[0]],[b[1],b[3],b[3],b[1],b[1]]
                     hlines.append(b[[0,1,0,3]])
                     vlines.append(b[[0,3,2,3]])
-                    hlines.append(b[[2,3,2,1]])
-                    vlines.append(b[[2,1,0,1]])
                     vlines_layout.add(b[0])
-                    vlines_layout.add(b[2])
-                    hlines_layout.add(b[1])
                     hlines_layout.add(b[3])
                     pass
         for vline in vlines:
