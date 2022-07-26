@@ -30,21 +30,11 @@ replacements = [
     ["\u3000",""],
     # ["\n",""]
 ]
-keywords = [
-    "购","买","方",
-    "销","售",
-    "密","码","区",
-    "名称","纳税人识别号","地址、电话","开户行及账号",
-]
 key = "浙江大学"
-keys = [
-    key,
-    "增值税电子普通发票"
-]
+
 vlines = []
 hlines = []
-vlines_layout = L.Lines()
-hlines_layout = L.Lines()
+grid = L.Grid()
 def pure(text):
     for r in replacements:
         text = text.replace(*r)
@@ -90,7 +80,6 @@ if __name__ == "__main__":
             page_box = page.mediabox
             w = page_box[2]
             h = page_box[3]
-            # print(page_box)
             interpreter.process_page(page)
             layout = device.get_result()
             for o in layout:
@@ -107,17 +96,16 @@ if __name__ == "__main__":
                     b = np.array(o.bbox)/[w,h,w,h]
                     hlines.append(b[[0,1,0,3]])
                     vlines.append(b[[0,3,2,3]])
-                    vlines_layout.add(b[0])
-                    hlines_layout.add(b[3])
+                    grid.add([b[0],b[3]],text)
                     pass
         for vline in vlines:
             draw_box(bx,vline,"y")
         for hline in hlines:
             draw_box(bx,hline,"b")
-        for v in vlines_layout.l:
-            cx.plot([v,v],[0,1],"b")
-            dx.plot([v,v],[0,1],"b")
-        for v in hlines_layout.l:
-            cx.plot([0,1],[v,v],"y")
-            dx.plot([0,1],[v,v],"y")
+        for n in grid.vIndex.lists:
+            cx.plot([n.v[0],n.v[0]],[0,1],"b")
+            dx.plot([n.v[0],n.v[0]],[0,1],"b")
+        for n in grid.hIndex.lists:
+            cx.plot([0,1],[n.v[1],n.v[1]],"y")
+            dx.plot([0,1],[n.v[1],n.v[1]],"y")
         plt.show()
