@@ -4,8 +4,9 @@
 import numpy as np
 import copy
 
-SAME = 0.015
+SAME_ = [0.016,0.015]
 class Lines:
+    SAME = 0.013
     def __init__(self):
         self.l = np.empty(shape=(0,))
     def add(self,v: float):
@@ -18,13 +19,55 @@ class Lines:
         self.l = np.sort(self.l)
 
 class Grid:
+    class Dir:
+        LEFTRIGHT = 0
+        UPDOWN = 1
+        LEFTORUP = 0
+        RIGHTORDOWN = 1
     class Node:
-        def __init__(self,model,v):
+        def __init__(self,text,v):
             self.neigh = [[None,None],[None,None]]
-            self.model = model
+            self.text = text
             self.v = v
+        def dir(self,c = 1,dir=[0,0]):
+            node = self
+            for _ in range(c):
+                node = node.neigh[dir[0]][dir[1]]
+                if node is None:
+                    break
+            return node
+        def right(self,c = 1):
+            return self.dir(c,[Grid.Dir.LEFTRIGHT,Grid.Dir.RIGHTORDOWN])
+        def left(self,c = 1):
+            return self.dir(c,[Grid.Dir.LEFTRIGHT,Grid.Dir.LEFTORUP])
+        def up(self,c = 1):
+            return self.dir(c,[Grid.Dir.UPDOWN,Grid.Dir.LEFTORUP])
+        def down(self,c = 1):
+            return self.dir(c,[Grid.Dir.UPDOWN,Grid.Dir.RIGHTORDOWN])
+        def downTo(self,v=1.0,append_node=False):
+            res = []
+            node = self
+            while node is not None and node.v[Grid.Dir.UPDOWN] < v:
+                res.append(node if append_node else node.text)
+                node = node.down()
+            return res
+        def rightTo(self,v=1.0,append_node=False):
+            res = []
+            node = self
+            while node is not None and node.v[Grid.Dir.LEFTRIGHT] < v:
+                res.append(node if append_node else node.text)
+                node = node.right()
+            return res
+        def downRightTo(self,*,rv=1.0,dv=1.0):
+            starts = self.downTo(dv,True)
+            res = []
+            for n in starts:
+                res.append(n.rightTo(rv))
+            return res
+        def rightDownTo(self,*,rv=1.0,dv=1.0):
+            pass
         def __str__(self):
-            return "m:{}-{},n:{}".format(hex(id(self)),str(self.model),self.neigh)
+            return "m:{}-{},n:{}".format(hex(id(self)),str(self.text),self.neigh)
     class NodeList:
         def __init__(self,v,IND):
             self.v = v
@@ -47,6 +90,14 @@ class Grid:
             node.neigh[self.IND][0] = left
             node.neigh[self.IND][1] = right
             self.nodes.insert(ind,node)
+        def getFirst(self,v):
+            node = None
+            min_v = 1
+            for n in self.nodes:
+                if n.v[self.IND] > v and n.v[self.IND] < min_v:
+                    node = n
+                    min_v = n.v[self.IND]
+            return node
         def __str__(self):
             repo = "NodeList: v={}".format(self.v)
             for n in self.nodes:
@@ -59,21 +110,39 @@ class Grid:
         def add(self,node):
             ind = 0
             left,right = None,None
+            line = None
+            dist = 9999
             for l in self.lists:
-                if l.v[self.IND] < node.v[self.IND] - SAME:
+                if l.v[self.IND] < node.v[self.IND] - SAME_[self.IND]:
                     ind += 1
                     left = l
-                elif l.v[self.IND] > node.v[self.IND] + SAME:
+                elif l.v[self.IND] > node.v[self.IND] + SAME_[self.IND]:
                     right = l
                     break
                 else:
-                    l.add(node)
-                    return
+                    temp_dist = np.abs(l.v[self.IND] - node.v[self.IND])
+                    if line is None or temp_dist < dist:
+                        dist = temp_dist
+                        line = l
+            if line is not None:
+                line.add(node)
+                return
             v = [0.0,0.0]
             v[self.IND] = node.v[self.IND]
             l = Grid.NodeList(v,1-self.IND)
             self.lists.insert(ind,l)
             l.add(node)
+        def getFirstNode(self,v,vside):
+            list = None
+            near_v = 1
+            for l in self.lists:
+                if l.v[self.IND] > v and l.v[self.IND] < near_v:
+                    list = l
+                    near_v = l.v[self.IND]
+            if list is not None:
+                return list.getFirst(vside)
+            else:
+                return None
         def __str__(self):
             repo = "RootList:"
             for l in self.lists:
@@ -83,12 +152,53 @@ class Grid:
         self.vIndex = self.__class__.RootList(0)
         self.hIndex = self.__class__.RootList(1)
         self.nodes = []
-    def add(self,v,model):
+    def add(self,v,text):
         assert(len(v)>=2)
-        node = self.__class__.Node(model,v)
+        node = self.__class__.Node(text,v)
         self.vIndex.add(node)
         self.hIndex.add(node)
         self.nodes.append(node)
+    def search(self,text,*,xl=[0.0,1.0],yl=[0.0,1.0]):
+        return self.searchSeq([text],xl=xl,yl=yl)
+    def searchSeq(self,texts,*,dir=Dir.LEFTRIGHT,xl = [0.0,1.0],yl = [0.0,1.0],startswith = True):
+        start_res = []
+        for n in self.nodes:
+            if texts[0] in n.text:
+                x,y = n.v
+                if x>xl[0] and x<xl[1] and y>yl[0] and y<yl[1]:
+                    start_res.append(n)
+        final_res = copy.copy(start_res)
+        for n in start_res:
+            node = n
+            for t in texts:
+                if node is None:
+                    final_res.remove(n)
+                    break
+                if node.text.startswith(t) or (startswith==False and t in node.text):
+                    node = node.neigh[dir][1]
+                else:
+                    final_res.remove(n)
+                    break
+        return_res = []
+        for n in final_res:
+            return_res.append(n.dir(len(texts)-1,[dir,Grid.Dir.RIGHTORDOWN]))
+        return return_res
+    def searchMultiSeq(self,multi_texts,*,dir=Dir.LEFTRIGHT,xl = [0.0,1.0],yl = [0.0,1.0],startswith = True):
+        res = []
+        for texts in multi_texts:
+            res += self.searchSeq(texts,dir=dir,xl=xl,yl=yl,startswith = startswith)
+        return res
+    def getFirstNode(self,xv,yv):
+        return self.hIndex.getFirstNode(yv,xv)
+    def normalization(self,x_range=[0.0,1.0],y_range = [0.0,1.0]):
+        #TODO
+        pass
+    def __str__(self):
+        repo = "Grid:"
+        for n in self.nodes:
+            repo += "\n"+str(n)
+        return repo
+
 
 if __name__ == "__main__":
     def t1():
@@ -119,6 +229,17 @@ if __name__ == "__main__":
             l.add(n)
             r.add(n)
         print(l)
+    def t4():
+        class A:
+            def __init__(self):
+                self.a = 1
+                pass
+            def f(self):
+                node = self
+                return node.a
+        a = A()
+        print(a.f())
     # t1()
     # t2()
-    t3()
+    # t3()
+    t4()
